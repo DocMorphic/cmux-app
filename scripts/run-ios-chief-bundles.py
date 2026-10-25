@@ -65,7 +65,7 @@ def prepare(upstream, out, project_commit):
     (out/'CaptureCalls.swift').write_text(generated)
     shutil.copy2(ROOT/'scripts/native-chief-bundle-probe.swift',out/'Probe.swift')
     (out/'ProbeLoad.m').write_text('#import <Foundation/Foundation.h>\n#import <dispatch/dispatch.h>\nextern void cmuxChiefBundleCapture(void);\n__attribute__((constructor)) static void cmuxLoad(void) { dispatch_async(dispatch_get_main_queue(), ^{ cmuxChiefBundleCapture(); }); }\n')
-    provenance = dict(schema=1,revision=manifest['revision'],projectCommit=project_commit,sourceSha256=pins,
+    provenance = dict(schema=2,revision=manifest['revision'],projectCommit=project_commit,sourceSha256=pins,
                       mainKeys=sorted(main_keys),moduleKeys=sorted(module_keys),languages=list(LANGUAGES),
                       generatedSha256={p.name:sha(p) for p in out.glob('*') if p.is_file()},
                       generatorSha256=sha(__file__),scope='Original full app project/catalogs and source L10n. Read-only sidecar, no authentication or UI actions; not native Home/question rendering.')

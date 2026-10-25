@@ -55,7 +55,12 @@ app package assembly and ShellUI package resource declarations. The manual
 Original iOS Chief bundle lookups workflow builds the original pinned app without
 editing its sources/resources. A Foundation sidecar calls unmodified L10n in the
 actual app process and records main/module resolution with executable/resource
-identity checks. Local preparation/typechecking is not runtime evidence. See
+identity checks. Run 40197041982 at 5bcce4c5 now supplies actual original-app resolution across nine
+languages: 21 Home/question keys use English main-bundle fallback; two unread
+keys resolve in main; 32 keys resolve in ShellUI. The probe extension adds original
+formatted unread observations and retains its generated constructor; its native
+execution is pending. Neither lookup capture executes Home/question views or the
+backend's static-property language lifetime. See
 [HANDOFF.md](../../docs/HANDOFF.md) for the exact capture run and current verification state; native UI,
 authentication and physical behavior are outside this resource probe.
 

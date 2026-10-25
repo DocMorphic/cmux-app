@@ -1,23 +1,32 @@
-## Original iOS bundle probe prepared — 2026-10-25
+## Original iOS bundle resolution observed — 2026-10-25
 
-The native Home/question Bundle.main gap now has an original-app capture path.
-This Mac has Command Line Tools only; the manual hosted macOS 26 workflow builds
-the pinned, unmodified iOS workspace and real native dependencies. A read-only
-sidecar runs the complete original L10n helper in that app process and compares
-executable/Info/catalog-resource hashes with the build product. It queries 23
-source main-bundle labels and 11 module error keys across nine launch languages.
-It neither signs in nor operates Home/question UI; matched native views remain
-separate from resource-resolution evidence.
+Hosted run 40197041982 at 5bcce4c5 built the original unmodified a5911a1f app,
+launched it in a fresh owned Simulator for nine languages, and shut down/deleted
+that Simulator successfully. Its read-only sidecar called the complete original
+L10n helper and matched executable, Info and catalog-resource hashes with the
+built app. There were 207 main lookups and 306 explicit module lookups.
 
-Local preparation, Swift/Objective-C checking, workflow YAML and 11 verifier tests
-pass. The original iOS app has not yet built or run on this path; runtime lookup
-and packaging remain unproven until its hosted capture is inspected. No Android
-app code, native libraries, real account/pairing/signing or frozen 722/723 changed.
-The signed 723 device availability question remains pending; do not duplicate it.
-Global source pins remain unchanged; nativeBundleFiles adds scoped resource/
-project attribution only. Next: dispatch Original iOS Chief bundle lookups, bind
-its exact run/head/artifact, and continue full-question error localization while
-it builds. All thirteen parity completion areas stay open.
+In every language, 21 Home/question keys are absent from the main bundle and
+resolve their English source defaults; only the two unread-count keys localize
+there. The ShellUI module resolves 32 keys, including localized backend errors.
+The app catalog, L10n helper and ChiefHomeView remain byte-identical in the checked
+newer upstream 7b15dacf; no newer-runtime or global-pin advancement is claimed.
+Android's copied catalog labels therefore still need effective-lookup alignment;
+module error localization is being corrected separately.
+
+The downloaded ZIP matches GitHub's artifact digest. Its first upload omitted the
+generated Objective-C constructor: local verification recovered the exact bytes
+from the same generator, matched the recorded SHA, and reproduced CI verification
+without changing the original download/ZIP. The workflow now retains that file.
+The new probe additionally captures original unreadLabel count formatting; 12
+verifier tests and Swift checking pass, but this extension has not run natively.
+
+Native reference evidence: `captures/recovery-20261025/chief-bundle-native-local-verification.json`.
+Resource lookup is proven at the stated source/runtime scope; native Home/question
+views, backend static-property language lifetime and physical behavior remain
+separate. Android source corrections and the next formatted-unread capture are in
+progress. Frozen 722/723 and real account/pairing/signing are preserved; signed 723
+availability remains pending. All thirteen parity areas remain open.
 
 ## Full-question reopening and focused input corrected — 2026-10-25
 

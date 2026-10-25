@@ -18,6 +18,7 @@ def verify(capture, project_commit, root=ROOT):
     manifest=json.loads((root/'third_party/cmux-chief/manifest.json').read_text())
     provenance=json.loads((capture/'Provenance.json').read_text())
     assert re.fullmatch('[0-9a-f]{40}',project_commit)
+    assert provenance['schema']==2
     assert provenance['projectCommit']==project_commit and provenance['revision']==manifest['revision']
     pins=dict(manifest['nativeBundleFiles']);pins.update(manifest['questionPresentationFiles'])
     for item in manifest['homeStrings']['catalogs']+[manifest['homeStrings']['unreadHelper'],manifest['questionStrings']]:
@@ -34,12 +35,16 @@ def verify(capture, project_commit, root=ROOT):
         assert re.fullmatch('[0-9a-f]{64}',product[key])
     assert product['resourceSha256'] and all(re.fullmatch('[0-9a-f]{64}',v) for v in product['resourceSha256'].values())
     main_keys=set(provenance['mainKeys']);all_keys=main_keys|set(provenance['moduleKeys'])
+    expected_main=set(manifest['questionStrings']['keys'])
+    for item in manifest['homeStrings']['catalogs']:expected_main.update(item['keys'])
+    assert main_keys==expected_main and len(provenance['mainKeys'])==len(main_keys)
+    assert all(key.startswith('mobile.chief.error.') for key in provenance['moduleKeys'])
     rows=[]
     files=list((capture/'observations').glob('*.json'))
     assert {p.stem for p in files}==set(provenance['languages']) and len(files)==9
     for language in provenance['languages']:
         path=capture/'observations'/(language+'.json');row=json.loads(path.read_text())
-        assert row['schema']==1 and row['requested']==language and row['bundleID']==product['bundleID']
+        assert row['schema']==2 and row['requested']==language and row['bundleID']==product['bundleID']
         assert row['mainBundle'].endswith('.app') and row['preferredLanguages']
         assert all(row[key]==product[key] for key in ['executableSha256','infoSha256','resourceSha256'])
         assert row['preferredLanguages'][0].split('-')[0]==language.split('-')[0]
@@ -50,6 +55,10 @@ def verify(capture, project_commit, root=ROOT):
         for key in main_keys:
             raw=row['mainRaw'][key]
             assert row['mainValues'][key]==(row['defaults'][key] if raw==MISSING else raw),(language,key)
+        unread=row['unreadLabels']
+        assert set(unread)=={'nil','0','1','2','17','1234'} and all(isinstance(value,str) and value for value in unread.values())
+        assert unread['0']==unread['nil'] and unread['1']==row['mainValues']['mobile.workspace.unreadCountFormat.one']
+        assert len({unread[key] for key in ['2','17','1234']})==3
         selected=row['selectedModule']
         if selected is not None:
             assert selected in row['moduleCandidates'] and selected.startswith(row['mainBundle']+'/') and selected.endswith('.bundle')
@@ -58,9 +67,9 @@ def verify(capture, project_commit, root=ROOT):
         rows.append(dict(language=language,mainPreferred=row['mainPreferred'],modulePreferred=row['modulePreferred'],
             mainResolved=sorted(k for k in main_keys if row['mainRaw'][k]!=MISSING),
             mainFallback=sorted(k for k in main_keys if row['mainRaw'][k]==MISSING),
-            moduleResolved=sorted(k for k in all_keys if row['moduleRaw'][k]!=MISSING),sha256=sha(path)))
-    receipt=dict(schema=1,projectCommit=project_commit,revision=manifest['revision'],languages=9,
-                 mainQueries=len(main_keys)*9,moduleQueries=len(all_keys)*9,rows=rows,
+            moduleResolved=sorted(k for k in all_keys if row['moduleRaw'][k]!=MISSING),unreadLabels=unread,sha256=sha(path)))
+    receipt=dict(schema=2,projectCommit=project_commit,revision=manifest['revision'],languages=9,
+                 mainQueries=len(main_keys)*9,moduleQueries=len(all_keys)*9,unreadQueries=54,rows=rows,
                  provenanceSha256=sha(capture/'Provenance.json'),productSha256=sha(capture/'build-product.json'),
                  scope='Actual compiled original app Bundle.main with unmodified source L10n and explicit packaged-module lookup. No native Home/question view, authentication, backend static-property or physical parity claim.')
     return receipt

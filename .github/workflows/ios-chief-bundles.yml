@@ -62,4 +62,5 @@ jobs:
             ${{ runner.temp }}/chief-bundles/*.json
             ${{ runner.temp }}/chief-bundles/*.log
             ${{ runner.temp }}/chief-bundles/*.swift
+            ${{ runner.temp }}/chief-bundles/*.m
             ${{ runner.temp }}/chief-bundles/observations
