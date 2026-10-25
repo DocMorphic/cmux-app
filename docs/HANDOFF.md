@@ -1,3 +1,21 @@
+## Corrected native UI run active — 2026-10-25
+
+[Run40213828169](https://github.com/DocMorphic/cmux-app/actions/runs/40213828169)
+is executing at exact source56204e94 after the offline route correction below.
+Eight generator/guard checks pass; native results remain unaccepted. Do not
+restart or duplicate this live job. Trusted source snapshot:
+captures/recovery-20261025/chief-home-ui-source-56204e94; route/failure checkpoint:
+chief-home-ui-route-checkpoint.json. The first failed artifact's template/package
+provenance, main catalog and Simulator cleanup are independently verified. It has
+no post-build product identity and proves no requested interaction acceptance.
+
+Mac repair40208082394 is still compiling exact75c017be. The Android search matcher
+is unchanged and still differs on30 cases per locale; additional scoped research
+is saved in chief-home-search-next-findings.json. A generic ICU collator is not an
+accepted substitute. The phone remains reclaimed/unavailable; no live phone or
+Mac UI was operated. Installed723 and frozen724, account/pairing/signing and all
+thirteen open parity areas are preserved.
+
 ## Original Home host route corrected — 2026-10-25
 
 Native UI run40210978473 compiled the complete original packages and host, then
