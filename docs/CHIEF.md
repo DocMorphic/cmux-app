@@ -1,3 +1,23 @@
+## Original Home execution and physical question entry — 2026-10-25
+
+Original UI run40213828169 at56204e94 passes two of three tests: all eight
+Home branches and expanded-case search. The question test reaches the actual
+conversation through the whole original backend, then fails to find its option
+as an accessibility button. The original UIKit cell merges its children; the
+option is present visually. This is an incomplete question test, not a passed
+question flow. Nine PNG/AX/RPC frame sets, clean original-source identity and
+successful owned Simulator shutdown/delete are retained in the digest-verified
+artifact12607019352; independent frame verification/review is pending.
+
+The host now measures that unchanged UIKit option's visible window frame and
+XCTest physically taps its center. It does not invoke a callback or programmatically
+present the sheet. Eight generator/guard tests and Swift syntax parsing pass;
+a fresh native run must verify the interaction. The surrounding authenticated
+shell, real transport, Android search differences and all thirteen full-parity
+areas remain open. Mac repair40208082394 is still compiling at75c017be. The owner
+reclaimed the phone again; no physical phone operations or availability request
+are authorized. Signed724 and the installed723 remain unchanged.
+
 ## Original Home host route corrected — 2026-10-25
 
 Native UI run40210978473 compiled the complete original packages and host, then

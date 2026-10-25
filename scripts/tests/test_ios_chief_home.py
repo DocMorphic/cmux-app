@@ -94,6 +94,8 @@ class OriginalHomeHostPreparation(unittest.TestCase):
         self.assertIn('route.kind == .iroh',source)
         self.assertIn('throw HomeReferenceError.tokenProviderForbidden',source)
         self.assertIn('request["auth"] == nil',source)
+        self.assertIn('view.accessibilityIdentifier == "conversation.poll.option.__chief_answer_questions__"',source)
+        self.assertIn('view.convert(view.bounds, to: window)',source)
         self.assertIn('params["wait_for_change"] as? Bool == true { continue }',source)
         self.assertIn('params["message"] as? String == "question-message"',source)
 

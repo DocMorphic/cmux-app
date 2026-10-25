@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 import Foundation
 import Combine
 import CMUXMobileCore
@@ -45,7 +46,30 @@ private struct HomeScene: Decodable, Sendable {
 
 @MainActor private final class HomeDiagnostics: ObservableObject {
     @Published var value = "{}"
-    func record(_ value: String) { self.value = value }
+    private var rpc = "{}"
+    func record(_ value: String) { rpc = value; observeWindow() }
+    func observeWindow() {
+        var report = ((try? JSONSerialization.jsonObject(with: Data(rpc.utf8))) as? [String: Any]) ?? [:]
+        var frames: [[Double]] = []
+        func walk(_ view: UIView, window: UIWindow) {
+            guard !view.isHidden, view.alpha > 0 else { return }
+            if view.accessibilityIdentifier == "conversation.poll.option.__chief_answer_questions__" {
+                let frame = view.convert(view.bounds, to: window)
+                if frame.width > 0, frame.height > 0, frame.intersects(window.bounds) {
+                    frames.append([Double(frame.minX), Double(frame.minY), Double(frame.width), Double(frame.height)])
+                }
+            }
+            for child in view.subviews { walk(child, window: window) }
+        }
+        for scene in UIApplication.shared.connectedScenes.compactMap({ $0 as? UIWindowScene }) {
+            for window in scene.windows where !window.isHidden { walk(window, window: window) }
+        }
+        report["questionEntryFrames"] = frames
+        if let bytes = try? JSONSerialization.data(withJSONObject: report, options: [.sortedKeys]) {
+            let next = String(decoding: bytes, as: UTF8.self)
+            if value != next { value = next }
+        }
+    }
 }
 @MainActor private struct HomeObservation: View {
     @ObservedObject var diagnostics: HomeDiagnostics
@@ -55,6 +79,12 @@ private struct HomeScene: Decodable, Sendable {
             .accessibilityIdentifier("reference.home.observation")
             .accessibilityLabel("Offline Home RPC observation")
             .accessibilityValue(diagnostics.value)
+            .task {
+                while !Task.isCancelled {
+                    diagnostics.observeWindow()
+                    do { try await Task.sleep(for: .milliseconds(100)) } catch { return }
+                }
+            }
     }
 }
 private enum HomeReferenceError: Error { case tokenProviderForbidden }

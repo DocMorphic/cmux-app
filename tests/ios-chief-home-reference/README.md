@@ -23,6 +23,10 @@ question entry, keyboard editing, cancellation, reopening and submission through
 the whole backend. Tests retain compositor screenshots and accessibility trees. A clear one-point
 observation node reports authored RPC methods/parameters. The exported observation
 binds the actual PNG and AX tree digests; it does not generate view pixels.
+The original conversation cell merges accessibility children. The question test
+therefore reads the visible option's UIKit frame through the observation node
+and taps its center using XCTest's physical coordinate API. This measures the
+unchanged view; it does not invoke its callback or present the sheet directly.
 The source generator records package tree identities and source/resource hashes;
 the runner requires a clean committed project, preserves result exports/build
 identity and shuts down/deletes only its own Simulator.
@@ -36,4 +40,8 @@ shell and real transport; it cannot establish complete app or physical parity.
 Run40210978473 at822f2f5c compiled the whole original packages and host. Its three
 UI tests failed because the prior debug-loopback fixture route was rejected as
 insecureManualRoute. This run is preserved as failure evidence, not accepted UI
-behavior. The admitted fixture-route correction needs a fresh native run.
+behavior. Corrected run40213828169 at56204e94 passes the eight-state Home test and
+expanded-case search test. Its question test reaches the actual conversation but
+cannot find the merged option as an accessibility button. Nine frame sets and
+the unchanged-source/build identity are retained; independent verification and
+review are pending. The measured physical-tap correction needs a fresh run.

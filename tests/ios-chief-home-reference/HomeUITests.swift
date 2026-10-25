@@ -12,6 +12,25 @@ import CryptoKit
     private func element(_ app: XCUIApplication, _ id: String) -> XCUIElement {
         app.descendants(matching: .any).matching(identifier: id).firstMatch
     }
+    private func tapQuestionEntry(_ app: XCUIApplication) throws {
+        let deadline = Date().addingTimeInterval(10)
+        while Date() < deadline {
+            if let raw = element(app, "reference.home.observation").value as? String,
+                let report = (try? JSONSerialization.jsonObject(with: Data(raw.utf8))) as? [String: Any],
+                let frames = report["questionEntryFrames"] as? [[Double]], frames.count == 1,
+                frames[0].count == 4, frames[0][2] > 0, frames[0][3] > 0 {
+                let frame = frames[0]
+                let metadata = XCTAttachment(data: try JSONSerialization.data(withJSONObject: report, options: [.sortedKeys]), uniformTypeIdentifier: "public.json")
+                metadata.name = "question-physical-entry.json"; metadata.lifetime = .keepAlways; add(metadata)
+                app.coordinate(withNormalizedOffset: .zero).withOffset(CGVector(dx: frame[0] + frame[2]/2, dy: frame[1] + frame[3]/2)).tap()
+                return
+            }
+            RunLoop.current.run(until: Date().addingTimeInterval(0.12))
+        }
+        capture(app, "question-entry-timeout")
+        XCTFail("Original UIKit question option did not produce one visible measured frame")
+        throw NSError(domain: "ChiefHomeReference", code: 1)
+    }
     private func capture(_ app: XCUIApplication, _ id: String) {
         let description = app.debugDescription
         let tree = XCTAttachment(string: description)
@@ -65,13 +84,13 @@ import CryptoKit
         XCTAssertFalse(element(app, "MobileChiefConversationRow-working").exists)
         capture(app, "search-expanded-case")
     }
-    func testQuestionOpenEditCancelReopenAndSubmitThroughWholeBackend() {
+    func testQuestionOpenEditCancelReopenAndSubmitThroughWholeBackend() throws {
         continueAfterFailure = false
         let app = launch("question"); defer { app.terminate() }
         let pinned = element(app, "MobileChiefPinnedConversation")
         XCTAssertTrue(pinned.waitForExistence(timeout: 10)); pinned.tap()
-        let entry = app.buttons.matching(NSPredicate(format: "label CONTAINS %@", "Answer questions")).firstMatch
-        XCTAssertTrue(entry.waitForExistence(timeout: 10)); entry.tap()
+        XCTAssertTrue(element(app, "conversation.bubble.question-message").waitForExistence(timeout: 10))
+        try tapQuestionEntry(app)
         let other = element(app, "MobileChiefQuestionOther-region")
         XCTAssertTrue(other.waitForExistence(timeout: 5))
         capture(app, "question-medium")
@@ -79,7 +98,8 @@ import CryptoKit
         XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 5))
         capture(app, "question-keyboard")
         app.buttons["Cancel"].tap()
-        XCTAssertTrue(entry.waitForExistence(timeout: 5)); entry.tap()
+        XCTAssertTrue(other.waitForNonExistence(timeout: 5))
+        try tapQuestionEntry(app)
         XCTAssertTrue(other.waitForExistence(timeout: 5))
         XCTAssertTrue(["", "Other answer (optional)"].contains(other.value as? String ?? "missing"))
         capture(app, "question-reopened")
