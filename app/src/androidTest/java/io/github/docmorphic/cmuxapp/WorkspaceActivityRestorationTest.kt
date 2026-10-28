@@ -24,7 +24,7 @@ class WorkspaceActivityRestorationTest {
     @Before fun setup() {
         check(Build.FINGERPRINT.contains("generic") || Build.MODEL.contains("sdk")) { "Emulator-only fixture" }
         store = NativeCredentialStore(InstrumentationRegistry.getInstrumentation().targetContext); store.clear()
-        store.update { it.put("refresh_token", "activity-pane-fixture").put("pairing_code", code) }
+        store.update { it.withNativeAuthPresentationFixture().put("refresh_token", "activity-pane-fixture").put("pairing_code", code) }
         store.rememberMac(code, "fixture-mac", "Fixture Mac")
         peer = NativeFixturePeer(); listing()
         NativeLifecycleTestActivity.connector = NativeConnector { _, _ ->

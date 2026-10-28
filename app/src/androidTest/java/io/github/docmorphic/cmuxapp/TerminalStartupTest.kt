@@ -21,7 +21,7 @@ class TerminalStartupTest {
     @Before fun setup() {
         check(Build.FINGERPRINT.contains("generic") || Build.MODEL.contains("sdk")) { "Emulator-only fixture" }
         store = NativeCredentialStore(InstrumentationRegistry.getInstrumentation().targetContext); store.clear()
-        store.update { it.put("refresh_token", "startup-emulator-fixture").put("pairing_code", "cmux-ios://attach?v=2&r=100.64.0.1:58465") }
+        store.update { it.withNativeAuthPresentationFixture().put("refresh_token", "startup-emulator-fixture").put("pairing_code", "cmux-ios://attach?v=2&r=100.64.0.1:58465") }
         peer = NativeFixturePeer(); listing(created = false)
         peer.terminalCreationResponse = { params ->
             assertEquals("workspace-1", params.getString("workspace_id"))

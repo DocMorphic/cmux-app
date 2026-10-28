@@ -26,7 +26,7 @@ class NativeLifecycleTest {
         val peer = NativeFixturePeer()
         var before: MobileRpcClient? = null
         try {
-            store.clear(); store.update { it.put("refresh_token", "foreground-recreation-fixture") }
+            store.clear(); store.update { it.withNativeAuthPresentationFixture().put("refresh_token", "foreground-recreation-fixture") }
             store.rememberMac("cmux-ios://attach?v=2&r=100.64.0.1:58465", "fixture-mac", "Fixture Mac")
             store.update { it.put("pairing_code", "cmux-ios://attach?v=2&r=100.64.0.1:58465") }
             NativeLifecycleTestActivity.connector = NativeConnector { _, _ ->

@@ -67,6 +67,7 @@ class WorkspaceDefaultRoutingTest {
         assertTrue(peer.requests.none { it.optString("method") == "mobile.browser.stream.start" })
     }
     @Test fun focusedBrowserStartsItsExactStreamInsteadOfTheTerminal() {
+        peer.browserCreationSupported = true
         show("""[{"id":"terminal-1","title":"Shell"}]""", """[
             {"surface_id":"browser-first","kind":"browser","title":"First browser"},
             {"surface_id":"browser-focused","kind":"browser","title":"Focused browser","is_focused":true}]""")
