@@ -16,8 +16,11 @@ two cold starts on the owned ARM64 emulator. Stable signing, packaged assets and
 16 KiB native alignment pass. This exact APK has not been retested on the physical
 Pixel; installed 723 previously passed real Mac/Pixel native terminal input/output.
 See the [release manifest](https://github.com/DocMorphic/cmux-app/releases/download/android-preview-750/manifest.json), [setup guide](docs/DAILY_USE.md) and
-[install record](docs/PIXEL_INSTALL.md). The configured Mac is signed in with pairing
-enabled; no new server setup or notification pairing is required.
+[install record](docs/PIXEL_INSTALL.md). Use normal cmux on the Mac with
+**Enable iOS pairing** and the same account/team; select that installation under
+Computers on Android. The saved dev-app pairing is separate. Normal-host support
+is implemented; build 750 still needs a live check against that regular installation.
+No new server setup or notification pairing is required.
 
 **Current host compatibility:** inspected cmux 0.64.25 uses Iroh-only pairing.
 Android now wires Iroh/V2 discovery and admitted RPC connections into the app and

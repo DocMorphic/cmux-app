@@ -1,3 +1,20 @@
+## Correction: normal cmux is supported for core access — 2026-10-28
+
+The owner wants ordinary cmux on the Mac. The earlier statement that the custom
+DEV app is required was incorrect: Android build 750 admits the official stable
+namespace as well as the separately scoped private companion. /Applications/cmux.app
+is installed as 0.65.1 (110). Its pairing preference is not explicitly set in the
+inspected defaults; no claim that normal cmux is ready is made. The running/saved
+connection is the isolated dev installation, not the regular installation.
+
+Use normal cmux, same account/team and Enable iOS pairing, then choose that
+installation in Android Computers. Verify that actual connection before calling
+normal-host runtime acceptance complete. No APK change is needed merely to admit
+stable hosts. Preserve dev workspaces and saved pairing while switching; do not
+quit/delete or copy their account/installation identities as a shortcut. Custom
+Mac push patches are separate from core native terminal/workspace access. Setup
+instructions are corrected in DAILY_USE.md. No Mac/phone state was changed.
+
 ## Daily-use build 750 published — 2026-10-28
 
 The owner's reduced daily-use delivery milestone is complete:

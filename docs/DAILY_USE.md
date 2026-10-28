@@ -40,14 +40,22 @@ than a debug APK. Do not remove the existing app to work around it.
 
 ## One-time Mac setup, if needed
 
-1. Run cmux on the Mac. On this Mac, keep using the already configured
-   **cmux DEV android-push** companion; its account and pairing are restored.
+1. Run the normal **cmux** app on the Mac. A custom Mac build is not a requirement
+   for native terminal/workspace access. The separate **cmux DEV android-push**
+   installation was used for private Android notification experiments.
 2. In cmux Settings, enable **Enable iOS pairing**. This setting also enables
    this Android companion.
 3. Sign in to the same cmux account and select the same team on both devices.
-4. On Android, open **Computers**, refresh if necessary, and select the Mac.
-   Native Iroh discovery/transport handles the connection. No separate server
+4. On Android, open **Computers**, refresh if necessary, and select the normal
+   cmux installation. An existing saved entry for the dev installation does not
+   automatically switch to normal cmux; the installations have distinct identities
+   and workspace sessions. Native Iroh discovery/transport handles the connection. No separate server
    installation is needed. A working internet connection is still required.
+
+The installed normal Mac app was inspected as version 0.65.1. Android build 750
+accepts the stable Mac namespace and the normal host compatibility policy. A fresh
+build-750 connection to that normal installation has not yet been verified live;
+the earlier real-phone terminal check used the custom installation.
 
 You can leave **Pair Android Notifications** closed. Your existing notification
 pairing is reused; generating another pairing code is unnecessary for an upgrade
