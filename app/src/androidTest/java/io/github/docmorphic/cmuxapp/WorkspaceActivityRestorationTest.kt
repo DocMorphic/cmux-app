@@ -62,9 +62,14 @@ class WorkspaceActivityRestorationTest {
     @Test fun offlineRecreationKeepsTheSelectedMacPanel() {
         listing(surfaces = """[{"surface_id":"project","kind":"project","title":"Project panel","is_focused":true}]""")
         launch(); waitFor("Project panel ▾"); offline.set(true)
+        // Recreation retains an admitted client; simulate an actual lost wire too.
+        peer.disconnectClients()
         scenario!!.recreate(); waitFor("Project panel ▾")
         compose.waitUntil(15_000) { offlineAttempts.get() > 0 }
-        waitFor("Reconnecting to your Mac…")
+        try { waitFor("Reconnecting to your Mac…") }
+        catch (failure: Throwable) {
+            throw AssertionError("Offline panel state:\n" + compose.onRoot(useUnmergedTree = true).printToString(), failure)
+        }
         compose.onNodeWithText("Open on Mac").assertIsNotEnabled()
         assertTrue(calls("mobile.terminal.replay").isEmpty())
     }
