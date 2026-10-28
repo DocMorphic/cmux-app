@@ -1,3 +1,22 @@
+## Current owner scope: daily-use Android delivery — 2026-10-28
+
+The owner explicitly replaced the exhaustive full-parity goal. Follow
+[DAILY_USE.md](DAILY_USE.md): deliver a signed APK download and setup instructions
+for saved Mac connection, terminal input/output, workspace/pane switching and
+reconnect/resume, targeting roughly two hours of focused work. Preserve sign-in,
+pairing, signing and app data. Use the existing Mac companion; no new servers,
+Play billing or notification-helper enrollment. Stop reference/Unicode research.
+The historical thirteen parity areas below are not delivery blockers for this
+milestone. The goal tool cannot replace an unfinished objective; this document
+records the owner's authoritative replacement scope without falsely marking the
+old parity objective achieved.
+
+The Mac companion is running with restored state. Physical build 723 previously
+passed native terminal input/output; frozen 724 is unpublished. The next signed
+release must have a version above both and an unchanged release certificate.
+Do not use the reclaimed phone without renewed availability. Build/package checks
+and owned-emulator daily-flow checks can proceed independently.
+
 ## Expanded original search and Unicode-provider reference prepared — 2026-10-25
 
 The corpus now has 5,696 authored inputs, adding all 150 local combining/joiner

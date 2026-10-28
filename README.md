@@ -1,8 +1,8 @@
 # cmux-app
 
-An **unofficial Android companion project** for [cmux](https://cmux.com). The release goal is feature parity with the official iOS companion on a Pixel 6a.
+An **unofficial Android companion project** for [cmux](https://cmux.com). The current goal is a reliable daily-use companion on a Pixel 6a: Mac connection, terminals, workspace switching and reconnects. See the [setup and delivery guide](docs/DAILY_USE.md).
 
-The app opens on the direct cmux connection path: same-account sign-in, selected-team computer discovery, framed mobile RPC, workspace and notification feeds, browser streams, and a styled terminal with scrollback. The previously tested [Mac helper](bridge/README.md) remains available in the app. The direct path is under physical-device validation; it is not yet a parity release. The [parity tracker](docs/PARITY.md) records every feature and its acceptance check.
+The app opens on the direct cmux connection path: same-account sign-in, selected-team computer discovery, framed mobile RPC, workspace and notification feeds, browser streams, and a styled terminal with scrollback. The previously tested [Mac helper](bridge/README.md) remains available in the app. The [parity tracker](docs/PARITY.md) is historical research; full iOS parity is outside the current delivery scope. No new server setup is required for the existing native Mac connection.
 
 For the current physical device check, use the [Pixel 6a install guide](docs/PIXEL_INSTALL.md).
 
