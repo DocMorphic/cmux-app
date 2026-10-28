@@ -1,3 +1,9 @@
+> **Scope changed 2026-10-28:** the owner replaced exhaustive iOS parity with
+> daily-use Android delivery. Signed build 750 is published; see
+> [download and setup](DAILY_USE.md). The parity gates below are historical
+> research, not blockers for this delivered milestone. Do not resume exhaustive
+> reference captures or server/billing work without a new owner request.
+
 ## Expanded original search and Unicode-provider reference prepared — 2026-10-25
 
 The corpus now has 5,696 authored inputs, adding all 150 local combining/joiner

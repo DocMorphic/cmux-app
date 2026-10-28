@@ -4,15 +4,20 @@ An **unofficial Android companion project** for [cmux](https://cmux.com). The cu
 
 The app opens on the direct cmux connection path: same-account sign-in, selected-team computer discovery, framed mobile RPC, workspace and notification feeds, browser streams, and a styled terminal with scrollback. The previously tested [Mac helper](bridge/README.md) remains available in the app. The [parity tracker](docs/PARITY.md) is historical research; full iOS parity is outside the current delivery scope. No new server setup is required for the existing native Mac connection.
 
-For the current physical device check, use the [Pixel 6a install guide](docs/PIXEL_INSTALL.md).
+For installation, use the [daily setup guide](docs/DAILY_USE.md) or [Pixel 6a install record](docs/PIXEL_INSTALL.md).
 
-**Signed download:** [build 659 APK](https://github.com/DocMorphic/cmux-app/releases/download/android-preview-659/app-release.apk)
-from `1f2616f7` is the current verified development preview. It includes the
-accumulated foreground/team-switch and exact-owner connection fixes. Signature,
-16 KiB native alignment, viewer assets, Firebase resources and six CI Android
-runtime class checks pass. Signed-in Pixel upgrade, real Mac pairing/push delivery
-and full parity remain open. See the [install guide](docs/PIXEL_INSTALL.md) for
-hashes and evidence, and [remaining work](docs/REMAINING_WORK.md) for acceptance.
+**Signed download:** [build 750 APK](https://github.com/DocMorphic/cmux-app/releases/download/android-preview-750/app-release.apk) (279 MB),
+from `40ae5ff7`. Install it as an update over the existing release app.
+It uses the same signing certificate as installed Pixel build 723.
+
+Verification: 3,552 unit tests passed/four existing skips; 26 distinct core Android
+cases have passing results; the exact signed APK passed six ART class checks and
+two cold starts on the owned ARM64 emulator. Stable signing, packaged assets and
+16 KiB native alignment pass. This exact APK has not been retested on the physical
+Pixel; installed 723 previously passed real Mac/Pixel native terminal input/output.
+See the [release manifest](https://github.com/DocMorphic/cmux-app/releases/download/android-preview-750/manifest.json), [setup guide](docs/DAILY_USE.md) and
+[install record](docs/PIXEL_INSTALL.md). The configured Mac is signed in with pairing
+enabled; no new server setup or notification pairing is required.
 
 **Current host compatibility:** inspected cmux 0.64.25 uses Iroh-only pairing.
 Android now wires Iroh/V2 discovery and admitted RPC connections into the app and

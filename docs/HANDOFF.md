@@ -1,3 +1,29 @@
+## Daily-use build 750 published — 2026-10-28
+
+The owner's reduced daily-use delivery milestone is complete:
+[download the signed APK](https://github.com/DocMorphic/cmux-app/releases/download/android-preview-750/app-release.apk); [setup](DAILY_USE.md).
+Production source `40ae5ff7cb7d5608d346b163da0babebf264cb19`; test fixture corrections
+`665f0ad3d357f41684c6dc4b9abc728827187915` leave production sources unchanged.
+SHA-256 `0df4f59e1d9bf5b4b2e3150764a54de1b0b5cb8952a0a2dab81438513fffec3e`; 278,853,630 bytes; stable signer unchanged.
+
+3,552 unit tests pass/four existing skips. All 26 selected core Android cases
+have passing results across three retained runs. The initial failures exposed
+stale synthetic auth/browser fixtures and an offline fixture that left its admitted
+wire open. Corrected fixtures pass without changing production. The exact signed
+APK passes six ART class checks and two cold starts on the owned ARM64 emulator;
+crash buffers are empty, settings restore and owned processes terminate. Terminal
+keyboard/workspace and exact-release sign-in screenshots were reviewed.
+
+The running real Mac is signed in, pairing enabled and three workspaces present.
+The phone was not used; its last observed physical install remains 723 until the
+owner upgrades. Existing account, pairing and signing data were preserved. No
+server setup or new notification pairing is required. GitHub native dependency
+rebuild 40690986522 was canceled; this APK is explicitly a verified local build,
+not a claimed successful CI artifact. Private evidence: captures/daily-use-20261028.
+Full-parity research and the historical thirteen gates below are outside the
+owner's current scope. The goal API still cannot replace its old unfinished
+objective; do not resume that superseded work from the old tracker entry.
+
 ## Current owner scope: daily-use Android delivery — 2026-10-28
 
 The owner explicitly replaced the exhaustive full-parity goal. Follow

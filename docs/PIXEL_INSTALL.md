@@ -1,3 +1,26 @@
+## Current download: daily-use build 750 — 2026-10-28
+
+[Download build 750](https://github.com/DocMorphic/cmux-app/releases/download/android-preview-750/app-release.apk). Open the APK on the Pixel and choose **Update**;
+keep the existing app installed. No USB connection is needed. Your Mac companion
+is already signed in and has pairing enabled. Open **Computers → your Mac → a
+workspace**, then choose a terminal. Keep cmux running and the Mac awake.
+See [DAILY_USE.md](DAILY_USE.md) for one-time setup and reconnect instructions.
+The Pair Android Notifications window can stay closed; reuse existing enrollment.
+
+- Package `io.github.docmorphic.cmuxapp`, versionCode 750 / versionName 0.2.0.
+- Source `40ae5ff7cb7d5608d346b163da0babebf264cb19`; local stable-signed build.
+- SHA-256 `0df4f59e1d9bf5b4b2e3150764a54de1b0b5cb8952a0a2dab81438513fffec3e`; 278,853,630 bytes.
+- Certificate SHA-256 `1118815b3831ae18005306c10bb0953a6fc2e9e20d14407223da52cda971abd4` (unchanged).
+- 3,552 unit passes/four skips; 26 core Android cases with passing results;
+  six exact-release ART checks/two cold starts; empty emulator crash buffers.
+- Exact 750 physical upgrade/sign-in is not claimed. The last observed installed
+  Pixel version is 723, which passed real native connection and terminal input/output.
+
+The earlier Mac build-pending/crash notes below are historical: verified custom
+Mac build 40208082394 was subsequently restored, with sign-in/pairing/workspaces
+intact. No Keychain prompt action is currently pending. Full-parity and private
+background-reply/cold-notification acceptance are outside this milestone.
+
 ## Mac repair restored; phone remains released — 2026-10-25
 
 Exact75c017be Mac build40208082394 is verified and running. Fresh backups,

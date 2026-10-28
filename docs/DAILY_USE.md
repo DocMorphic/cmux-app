@@ -18,6 +18,13 @@ terminal access. Full iOS visual parity, exhaustive reference captures, billing,
 Cloud and experimental background notification/reply acceptance are outside this
 milestone. The historical parity tracker is not this release's completion gate.
 
+## Download
+
+[Download signed build 750](https://github.com/DocMorphic/cmux-app/releases/download/android-preview-750/app-release.apk) (278,853,630 bytes).
+[Release notes and verification manifest](https://github.com/DocMorphic/cmux-app/releases/tag/android-preview-750).
+Built from `40ae5ff7cb7d5608d346b163da0babebf264cb19` with the existing release key.
+The daily-use delivery milestone is complete; full iOS parity is outside its scope.
+
 ## Upgrade on your Pixel
 
 1. Download `app-release.apk` from the release linked in the repository README.
@@ -61,9 +68,16 @@ first recovery step. A sleeping or powered-off Mac cannot serve live terminals.
 
 ## Delivery evidence
 
-The release notes and manifest identify the exact source, APK SHA-256, version
-and build verification. Emulator tests exercise native terminal lanes, saved-Mac
-selection, workspace routing and activity/background recovery. They do not replace
+Build 750 passed 3,552 unit tests with four existing skips. All 26 selected core
+Android cases have passing results across the recorded runs after correcting
+stale synthetic sign-in/browser fixtures and making the offline fixture close its
+wire. Production sources did not change during those test corrections. The exact
+signed APK passed six ART class checks and two cold starts on the owned ARM64
+emulator, with an empty crash buffer. Signing, native 16 KiB alignment and viewer
+asset checks passed. Emulator settings were restored and the emulator stopped.
+The release notes and manifest identify the source, APK SHA-256 and version.
+Emulator tests exercise native terminal lanes, saved-Mac selection, workspace
+routing and activity/background recovery. They do not replace
 an actual phone check. The previously installed build 723 passed real Mac/Pixel
 native connection and terminal input/output; the new APK must be identified
 separately rather than claiming that older check tested its exact bytes.
