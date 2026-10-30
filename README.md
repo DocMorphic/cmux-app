@@ -4,7 +4,7 @@ An **unofficial Android companion for [cmux](https://cmux.com)**. Connect to you
 Mac, open its workspaces and terminal panes, type commands, view output and
 scrollback, and reconnect when you return to the app.
 
-**[Download the Android APK — build 750](https://github.com/DocMorphic/cmux-app/releases/download/android-preview-750/app-release.apk)** ·
+**[Download the Android APK — build 750](https://github.com/DocMorphic/cmux-app/releases/download/android-preview-750/cmux-android-750.apk)** ·
 [Release notes](https://github.com/DocMorphic/cmux-app/releases/tag/android-preview-750) ·
 [All downloads](https://github.com/DocMorphic/cmux-app/releases)
 
@@ -38,11 +38,17 @@ this app is not an offline replacement for those services.
 
 ### 1. Install on your phone
 
-1. Tap **[Download the Android APK](https://github.com/DocMorphic/cmux-app/releases/download/android-preview-750/app-release.apk)**.
-2. Open `app-release.apk` from your browser's downloads or the Android Files app.
+1. Tap **[Download the Android APK](https://github.com/DocMorphic/cmux-app/releases/download/android-preview-750/cmux-android-750.apk)**.
+2. Wait for the browser to mark the download complete, then open
+   `cmux-android-750.apk` from **Files → Downloads** or your browser's downloads.
 3. If Android asks, allow **Install unknown apps** for the browser or Files app
    opening this download, then tap **Install**. If you already have this project's
    release app installed, tap **Update** instead.
+
+The versioned `cmux-android-750.apk` and the older `app-release.apk` asset in
+this same release contain identical signed bytes; either updates the same app.
+A progress counter at the full file size can precede the browser finishing the
+save/check step. The Android installer starts only after you open the saved APK.
 
 The app is distributed here as an APK, not through Google Play. Installing the
 release APK does not require a computer or command-line tools.
@@ -108,10 +114,11 @@ rather than assuming every exposed experimental feature is generally supported.
 
 | Problem | What to check |
 | --- | --- |
+| Download reaches its full size but never offers Install/Open | Check **Files → Downloads** for a completed `.apk`. If it opens, install/update from there. A `.crdownload` file is incomplete. If the browser stays stuck, cancel that download and retry the versioned APK link at the top; keep the installed app. |
 | My Mac does not appear | Confirm the same account and team on both devices, **Enable iOS pairing** in Mac Settings, and that cmux is running on an awake Mac. Refresh **Computers**. |
 | I see the dev app instead of normal cmux | The installations have separate identities and sessions. Open normal cmux, enable its pairing and select its entry on Android. |
 | The Mac appears but cannot connect | Check internet access on both devices and the app's error message. If it asks for a Mac update, update normal cmux and retry the saved entry. |
-| Android says the APK is incompatible | Check Android 8.0+ and a 64-bit ARM phone. Download `app-release.apk`, not a debug build or a source-code ZIP. |
+| Android says the APK is incompatible | Check Android 8.0+ and a 64-bit ARM phone. Download `cmux-android-750.apk`, not a debug build or a source-code ZIP. |
 | An existing installation will not update | Check that the APK is from this repository and has a higher version code. A different signing key or package cannot update the release app. Preserve its data while investigating the error. |
 | I do not receive background push alerts | Public background push is not included in the basic setup; normal terminal access does not require the private notification helper. |
 
@@ -142,11 +149,11 @@ see the [verification manifest](https://github.com/DocMorphic/cmux-app/releases/
 Build 750: package `io.github.docmorphic.cmuxapp`, version `0.2.0`, version code
 `750`, size **278,853,630 bytes**.
 
-- [SHA256SUMS](https://github.com/DocMorphic/cmux-app/releases/download/android-preview-750/SHA256SUMS)
+- [APK checksum](https://github.com/DocMorphic/cmux-app/releases/download/android-preview-750/cmux-android-750.apk.sha256)
 - APK SHA-256: `0df4f59e1d9bf5b4b2e3150764a54de1b0b5cb8952a0a2dab81438513fffec3e`
 - Signing certificate SHA-256: `1118815b3831ae18005306c10bb0953a6fc2e9e20d14407223da52cda971abd4`
 
-On a Mac, `shasum -a 256 app-release.apk` prints the APK checksum. The checksum is
+On a Mac, `shasum -a 256 cmux-android-750.apk` prints the APK checksum. The checksum is
 for this exact build; a newer release has its own manifest and checksum.
 
 </details>
